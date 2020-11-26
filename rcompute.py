@@ -8,6 +8,7 @@ def mat_rot(rx, ry, rz):
     ry *= np.pi
     rz *= np.pi
 
+    print('Matrices')
     Rmx = np.array([[1, 0, 0],
                     [0, np.cos(rx), -np.sin(rx)],
                     [0, np.sin(rx), np.cos(rx)]])
@@ -20,7 +21,9 @@ def mat_rot(rx, ry, rz):
                     [np.sin(rz), np.cos(rz), 0],
                     [0, 0, 1]])
 
+    print(Rmz)
     R = np.dot(Rmy, Rmz)
+    print(R)
     return np.dot(Rmx, R)
 
 
@@ -31,5 +34,18 @@ def rep_rot(rx, ry, rz, t=1):
     v3 = np.array([0, 0, t])
 
     R = mat_rot(rx, ry, rz)
+    print(R)
 
     return np.dot(R, v1), np.dot(R, v2), np.dot(R, v3)
+
+
+def normalize(rx, ry, rz, t=1):
+    """ Crée un vecteur colinéaire de norme t. """
+    s = rx**2 + ry**2 + rz**2
+    s = np.power(s, 0.5)
+
+    v = np.array([rx, ry, rz])
+    v /= s
+    v *= t
+
+    return v

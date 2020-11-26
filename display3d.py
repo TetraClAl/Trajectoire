@@ -3,19 +3,25 @@ from matplotlib import pyplot as plt
 from rcompute import *
 
 
-def rep3d(ax, vc, vr, t=5):
+def rep3d(ax, vc, vr, t=5, typerot='vec'):
     """ Créée dans ax un repère de centre vc et de rotation vr. """
-    v1, v2, v3 = rep_rot(float(vr[0]), float(vr[1]), float(vr[2]), 5)
-
-    #print(v1, v2, v3)
-
     x, y, z = float(vc[0]), float(vc[1]), float(vc[2])
 
-    #print(x, y, z)
+    if typerot == 'eul':
+        v1, v2, v3 = rep_rot(float(vr[0]), float(vr[1]), float(vr[2]), 5)
 
-    ax.quiver(x, y, z, v1[0], v1[1], v1[2], color='r')
-    ax.quiver(x, y, z, v2[0], v2[1], v2[2], color='g')
-    ax.quiver(x, y, z, v3[0], v3[1], v3[2], color='b')
+        print('Vecteurs de rotation :', vr)
+        #print(v1, v2, v3)
+
+        #print(x, y, z)
+
+        ax.quiver(x, y, z, v1[0], v1[1], v1[2], color='r')
+        ax.quiver(x, y, z, v2[0], v2[1], v2[2], color='g')
+        ax.quiver(x, y, z, v3[0], v3[1], v3[2], color='b')
+
+    else:
+        vr = normalize(float(vr[0]), float(vr[1]), float(vr[2]), t)
+        ax.quiver(x, y, z, vr[0], vr[1], vr[2])
 
 
 def graph3d(tabdata, tg=60):
