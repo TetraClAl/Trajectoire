@@ -19,9 +19,9 @@ if __name__ == "__main__":
         if e[0] != 'id' and e[0] != '-1':
             ltarget += [e[1:4]]
 
-    Lry1, Lrz1, Lrx2, Lry2 = optitrajectoire(-0.5, 0.5, 0, 0, ltarget)
+    Lry1, Lrz1, Lrx2, Lry2, dist = optitrajectoire(-0.5, 0.5, 0, 0, ltarget)
 
-    fig = plt.figure()
+    fig = plt.figure(1)
     ax = fig.add_subplot(111, projection='3d')
 
     ax.set_xlim([-tg, tg])
@@ -34,5 +34,11 @@ if __name__ == "__main__":
 
     for i in range(len(Lry1)):
         displaybras1(Lry1[i], Lrz1[i], Lrx2[i], Lry2[i], ax)
+
+    plt.figure(2)
+    plt.plot(dist)
+
+    plt.xlabel('Numéro de point')
+    plt.ylabel('Distance à la consigne')
 
     plt.show()
