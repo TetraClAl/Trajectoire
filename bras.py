@@ -2,9 +2,11 @@ import numpy as np
 from matplotlib import pyplot as plt
 from rcompute import *
 import random
+import copy
 
 L1 = 40
 L2 = 40
+L3 = 10
 
 
 def bras1pos(ry1, rz1, rx2, ry2):
@@ -99,6 +101,65 @@ def optibras(ry1, rz1, rx2, ry2, target):
     return ry1, rz1, rx2, ry2
 
 
+def bras2pos(A):
+    x0 = 0
+    y0 = 0
+    l1 = L1
+    l2 = L2
+    l3 = L3
+
+    R1 = mat_rot(0, A[0], A[1])
+    vx, vy, vz = np.dot(R1, np.array([1., 0., 0.])), np.dot(
+        R1, np.array([0., 1., 0.])), np.dot(R1, np.array([0., 0., 1.]))
+    pos1 = vx * l1
+
+    # print(pos1)
+
+    Ri = mat_rot(0, A[2], 0)
+    R2 = np.dot(R1, Ri)
+    # print(R2)
+    vx2, vy2, vz2 = np.dot(R2, np.array([1., 0., 0.])), np.dot(
+        R2, np.array([0., 1., 0.])), np.dot(R2, np.array([0., 0., 1.]))
+
+    # print(vx2)
+    pos2 = pos1 + vx2 * l2
+
+    Ri = mat_rot(A[3], A[4], A[5])
+    R3 = np.dot(R2, Ri)
+    vx3, vy3, vz3 = np.dot(R3, np.array([1., 0., 0.])), np.dot(
+        R3, np.array([0., 1., 0.])), np.dot(R3, np.array([0., 0., 1.]))
+
+    pos3 = pos2 + vx3 * l3
+
+    return pos1, pos2, pos3
+    # print(pos2)
+
+
+def displaybras2(A, ax):
+    pos1, pos2, pos3 = bras2pos(A)
+
+    delta = pos2 - pos1
+    beta = pos3 - pos2
+
+    ax.quiver(0, 0, 0, pos1[0], pos1[1], pos1[2], color='b')
+    ax.quiver(pos1[0], pos1[1], pos1[2], delta[0],
+              delta[1], delta[2], color='r')
+    ax.quiver(pos2[0], pos2[1], pos2[2], beta[0],
+              beta[1], beta[2], color='g')
+
+
+def distbras2(A, target):
+    pos1, pos2, pos3 = bras2pos(A)
+    return normv(pos3 - target)
+
+
+def aleaR2(A, k):
+    for i in range(len(A)):
+        A[i] += k * random.uniform(-1, 1)
+
+    return A
+
+
 def aleaR(ry1, rz1, rx2, ry2, k):
 
     ry1 += k * random.uniform(-1, 1)
@@ -121,9 +182,21 @@ def optibrasmonte(ry1, rz1, rx2, ry2, n, k, target):
     return ry1, rz1, rx2, ry2
 
 
+def optibrasmonte2(A, n, k, target):
+    d = distbras2(A, target)
+
+    for i in range(n):
+        Ar = aleaR2(A, k)
+        if distbras2(Ar, target) < d:
+            d = distbras2(Ar, target)
+            A = copy.deepcopy(Ar)
+
+    return A
+
+
 def optimonte(ry1, rz1, rx2, ry2, target, tol=0):
     d = distbras(ry1, rz1, rx2, ry2, target)
-    k = 2*np.pi*d/500
+    k = 2*np.pi*d/10000
 
     print('OptiMonte')
     print('k = ', k)
@@ -140,7 +213,7 @@ def optimonte(ry1, rz1, rx2, ry2, target, tol=0):
         else:
             ry1, rz1, rx2, ry2 = rpy1, rpz1, rpx2, rpy2
             d = distbras(ry1, rz1, rx2, ry2, target)
-            k = 2*np.pi*d/500
+            k = 2*np.pi*d/10000
             print('Hit   ', k*(0.1**e), d)
         if d < tol:
             return ry1, rz1, rx2, ry2
@@ -148,25 +221,31 @@ def optimonte(ry1, rz1, rx2, ry2, target, tol=0):
     return ry1, rz1, rx2, ry2
 
 
-def optimonte2(ry1, rz1, rx2, ry2, target, n):
+def optimonte2(A, target, tol=0):
+    d = distbras2(A, target)
+    k = 2*np.pi*d/10000
+
     print('OptiMonte')
-
-    d = distbras(ry1, rz1, rx2, ry2, target)
-    k = 2*np.pi*d / 100
-
     print('k = ', k)
     print('d = ', d)
 
-    for i in range(n):
-        rpy1, rpz1, rpx2, rpy2 = aleaR(ry1, rz1, rx2, ry2, k)
-        if distbras(rpy1, rpz1, rpx2, rpy2, target) < d:
-            d = distbras(rpy1, rpz1, rpx2, rpy2, target)
-            ry1, rz1, rx2, ry2 = rpy1, rpz1, rpx2, rpy2
-            k = 2*np.pi*d / 100
-            print('k = ', k)
-            print('d = ', d)
+    e = 0
 
-    return ry1, rz1, rx2, ry2
+    for i in range(20):
+        Ar = optibrasmonte2(
+            A, 1000, k*(0.1**e), target)
+        if False:  # (Ar) == (A):
+            e += 1
+            print('Reduc ', k*(0.1**e), d)
+        else:
+            A = copy.deepcopy(Ar)
+            d = distbras2(A, target)
+            k = 2*np.pi*d/10000
+            print('Hit   ', k*(0.1**e), d)
+        if d < tol:
+            return A
+
+    return A
 
 
 def optitrajectoire(ry1, rz1, rx2, ry2, target):
@@ -178,7 +257,7 @@ def optitrajectoire(ry1, rz1, rx2, ry2, target):
 
     target0 = [float(target[0][0]), float(target[0][1]), float(target[0][2])]
     Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1] = optimonte(
-        Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1], target0, 0.5)
+        Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1], target0, 0.01)
 
     Lry1 += [Lry1[-1]]
     Lrz1 += [Lrz1[-1]]
@@ -186,7 +265,7 @@ def optitrajectoire(ry1, rz1, rx2, ry2, target):
     Lry2 += [Lry2[-1]]
     coord0 = [float(target[1][0]), float(target[1][1]), float(target[1][2])]
     Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1] = optimonte(
-        Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1], coord0, 0.5)
+        Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1], coord0, 0.01)
 
     for coord in target[2:]:
         Lry1 += [2 * Lry1[-1] - Lry1[-2]]
@@ -197,7 +276,7 @@ def optitrajectoire(ry1, rz1, rx2, ry2, target):
         coord0 = [float(coord[0]), float(coord[1]), float(coord[2])]
         print("Bras, target : ", coord0)
 
-        tol = 0.5
+        tol = 0.01
         Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1] = optimonte(
             Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1], coord0, tol)
         pos1, pos2 = bras1pos(Lry1[-1], Lrz1[-1], Lrx2[-1], Lry2[-1])
@@ -209,6 +288,34 @@ def optitrajectoire(ry1, rz1, rx2, ry2, target):
 
 
 if __name__ == "__main__":
+
+    tg = 80
+
+    A = [0, 0, 0, 0, 0, 0]
+    target = np.array([60, 40, 0])
+    for i in range(1):
+        #ry1, rz1, rx2, ry2 = optibras(ry1, rz1, rx2, ry2, target)
+        #ry1, rz1, rx2, ry2 = optimonte2(ry1, rz1, rx2, ry2, target, 100000)
+        A = optimonte2(A, target)
+    pos1, pos2, pos3 = bras2pos(A)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.set_xlim([-tg, tg])
+    ax.set_ylim([-tg, tg])
+    ax.set_zlim([-tg, tg])
+
+    ax.set_xlabel('axe x')
+    ax.set_ylabel('axe y')
+    ax.set_zlabel('axe z')
+
+    displaybras2(A, ax)
+
+    plt.show()
+
+
+def test():
 
     bras1pos(-0.5, 0.5, 0, 0.5)  # [1. 1. 0.]
 
@@ -237,5 +344,7 @@ if __name__ == "__main__":
     ax.set_zlabel('axe z')
 
     displaybras1(ry1, rz1, rx2, ry2, ax)
+
+    displaybras1(0, 0, 0, 0, ax)
 
     plt.show()
