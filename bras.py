@@ -108,7 +108,7 @@ def bras2pos(A):
     l2 = L2
     l3 = L3
 
-    R1 = mat_rot(0, A[0], A[1])
+    R1 = np.dot(mat_rot(0, 0, A[0]), mat_rot(0, A[1], 0))
     vx, vy, vz = np.dot(R1, np.array([1., 0., 0.])), np.dot(
         R1, np.array([0., 1., 0.])), np.dot(R1, np.array([0., 0., 1.]))
     pos1 = vx * l1
@@ -135,8 +135,43 @@ def bras2pos(A):
     # print(pos2)
 
 
-def displaybras2(A, ax):
-    pos1, pos2, pos3 = bras2pos(A)
+def bras3pos(A):
+    x0 = 0
+    y0 = 0
+    l1 = L1
+    l2 = L2
+    l3 = L3
+
+    R1 = np.dot(mat_rot(0, 0, A[0]), mat_rot(0, A[1], 0))
+    vx, vy, vz = np.dot(R1, np.array([1., 0., 0.])), np.dot(
+        R1, np.array([0., 1., 0.])), np.dot(R1, np.array([0., 0., 1.]))
+    pos1 = vx * l1
+
+    # print(pos1)
+
+    Ri = mat_rot(0, A[2], 0)
+    R2 = np.dot(R1, Ri)
+    # print(R2)
+    vx2, vy2, vz2 = np.dot(R2, np.array([1., 0., 0.])), np.dot(
+        R2, np.array([0., 1., 0.])), np.dot(R2, np.array([0., 0., 1.]))
+
+    # print(vx2)
+    pos2 = pos1 + vx2 * l2
+
+    # print(pos2)
+    xy = 0
+    z = 15.5
+    cxy = 4.4
+    cz = 1.8
+
+    pos3 = pos2 + vz2 * np.cos(A[3]) * cxy + vy2 * \
+        np.cos(A[4]) * cxy + vx2 * np.cos(A[5]) * cz + vx2 * z
+
+    return pos1, pos2, pos3
+
+
+def displaybras2(A, ax, f=bras2pos):
+    pos1, pos2, pos3 = f(A)
 
     delta = pos2 - pos1
     beta = pos3 - pos2
@@ -148,16 +183,18 @@ def displaybras2(A, ax):
               beta[1], beta[2], color='g')
 
 
-def distbras2(A, target):
-    pos1, pos2, pos3 = bras2pos(A)
+def distbras2(A, target, f=bras2pos):
+    pos1, pos2, pos3 = f(A)
     return normv(pos3 - target)
 
 
 def aleaR2(A, k):
-    for i in range(len(A)):
-        A[i] += k * random.uniform(-1, 1)
+    Ab = copy.deepcopy(A)
 
-    return A
+    for i in range(len(A)):
+        Ab[i] += k * random.uniform(-1, 1)
+
+    return Ab
 
 
 def aleaR(ry1, rz1, rx2, ry2, k):
@@ -182,16 +219,44 @@ def optibrasmonte(ry1, rz1, rx2, ry2, n, k, target):
     return ry1, rz1, rx2, ry2
 
 
-def optibrasmonte2(A, n, k, target):
-    d = distbras2(A, target)
+def optibrasmonte2(Ain, n, k, target, f=bras2pos):
+    d = distbras2(Ain, target, f)
 
     for i in range(n):
-        Ar = aleaR2(A, k)
-        if distbras2(Ar, target) < d:
-            d = distbras2(Ar, target)
-            A = copy.deepcopy(Ar)
+        Ar = aleaR2(Ain, k)
+        if distbras2(Ar, target, f) < d:
+            d = distbras2(Ar, target, f)
+            for i in range(len(Ar)):
+                Ain[i] = Ar[i]
 
-    return A
+    return Ain
+
+
+def aglf(A, rot, f=bras2pos):
+    pos1, pos2, pos3 = f(A)
+    v1 = pos3 - pos2
+    v1[0] *= rot[0]
+    v1[1] *= rot[1]
+    v1[2] *= rot[2]
+    s = v1[0] + v1[1] + v1[2]
+    return abs(np.arccos(s / (normv(rot) * normv(pos3-pos2))))
+
+
+def optibrasmonte2rot(Ain, n, k, target, rot, f=bras2pos):
+    d = distbras2(Ain, target, f)
+    a = aglf(Ain, rot, f)
+
+    for i in range(n):
+        Ar = aleaR2(Ain, k)
+        r = np.sqrt(distbras2(Ar, target, f)**2 + aglf(Ar, rot, f)**2)
+        # print(r)
+        if r < np.sqrt(d**2 + a**2):
+            d = distbras2(Ar, target, f)
+            a = aglf(Ar, rot, f)
+            for i in range(len(Ar)):
+                Ain[i] = Ar[i]
+
+    return Ain
 
 
 def optimonte(ry1, rz1, rx2, ry2, target, tol=0):
@@ -221,31 +286,61 @@ def optimonte(ry1, rz1, rx2, ry2, target, tol=0):
     return ry1, rz1, rx2, ry2
 
 
-def optimonte2(A, target, tol=0):
-    d = distbras2(A, target)
+def optimonte2(A, target, tol=0, f=bras2pos):
+    d = distbras2(A, target, f)
+    k = 2*np.pi*d/10000
+    N = 100
+    M = 20
+    data = []
+
+    print('OptiMonte')
+    print('k = ', k)
+    print('d = ', d)
+
+    Ar = copy.deepcopy(A)
+
+    for i in range(M):
+        Ar2 = optibrasmonte2(Ar, N, k, target, f)
+
+        Ar = copy.deepcopy(Ar2)
+
+        d = distbras2(Ar, target, f)
+        k = 2*np.pi*d/10000
+        print('Hit   ', k, d)
+        data += [[N * (i + 1), d]]
+        if d < tol:
+            print('Tol ', distbras2(Ar, target, f), Ar)
+            return Ar
+
+    return Ar
+
+
+def optimonte2rot(A, target, rot, tol=0, f=bras2pos):
+    d = distbras2(A, target, f)
     k = 2*np.pi*d/10000
 
     print('OptiMonte')
     print('k = ', k)
     print('d = ', d)
 
-    e = 0
+    Ar = copy.deepcopy(A)
 
-    for i in range(20):
-        Ar = optibrasmonte2(
-            A, 1000, k*(0.1**e), target)
-        if False:  # (Ar) == (A):
-            e += 1
-            print('Reduc ', k*(0.1**e), d)
-        else:
-            A = copy.deepcopy(Ar)
-            d = distbras2(A, target)
-            k = 2*np.pi*d/10000
-            print('Hit   ', k*(0.1**e), d)
-        if d < tol:
-            return A
+    for i in range(400):
+        Ar2 = optibrasmonte2rot(Ar, 400, k, target, rot, f)
 
-    return A
+        Ar = copy.deepcopy(Ar2)
+
+        d = distbras2(Ar, target, f)
+        Agl = aglf(Ar, rot, f)
+        print('D', d, 'Agl', Agl)
+
+        k = np.sqrt(Agl**2+d**2)*2*np.pi/10000
+        print('Hit   ', k, d)
+        if d < tol and Agl < tol:
+            print('Tol ', distbras2(Ar, target, f), Ar)
+            return Ar
+
+    return Ar
 
 
 def optitrajectoire(ry1, rz1, rx2, ry2, target):
@@ -287,16 +382,78 @@ def optitrajectoire(ry1, rz1, rx2, ry2, target):
     return Lry1, Lrz1, Lrx2, Lry2, dist
 
 
+def optitrajectoire2(A, target, f=bras2pos):
+    S = []
+    tol = 0.0001
+    vectarget = []
+    dist = []
+
+    for i in range(len(target)):
+        vectarget += [[float(target[i][0]), float(target[i]
+                                                  [1]), float(target[i][2])]]
+
+    S += [optimonte2(A, vectarget[0], tol, f)]
+    S += [optimonte2(S[0], vectarget[1], tol, f)]
+
+    for i in range(2, len(vectarget)):
+        B = [0, 0, 0, 0, 0, 0]
+        for j in range(6):
+            B[j] = 2 * S[i - 1][j] - S[i - 2][j]
+
+        print("Bras, target : ", vectarget[i])
+
+        B = optimonte2(B, vectarget[i], tol, f)
+        S += [B]
+        pos1, pos2, pos3 = bras2pos(B)
+
+        print("Terminé : ", normv(vectarget[i] - pos3))
+        dist += [normv(vectarget[i] - pos3)]
+
+    return S, dist
+
+
+def optitrajectoire2rot(A, target, rot, f=bras2pos):
+    S = []
+    tol = 0.01
+    vectarget = []
+    dist = []
+
+    for i in range(len(target)):
+        vectarget += [[float(target[i][0]), float(target[i]
+                                                  [1]), float(target[i][2])]]
+
+    S += [optimonte2rot(A, vectarget[0], rot[0], tol, f)]
+    S += [optimonte2rot(S[0], vectarget[1], rot[1], tol, f)]
+
+    for i in range(2, len(vectarget)):
+        B = [0, 0, 0, 0, 0, 0]
+        for j in range(6):
+            B[j] = 2 * S[i - 1][j] - S[i - 2][j]
+
+        print("Bras, target : ", vectarget[i])
+
+        B = optimonte2rot(B, vectarget[i], rot[i], tol, f)
+        S += [B]
+        pos1, pos2, pos3 = f(B)
+
+        print("Terminé : ", normv(vectarget[i] - pos3))
+        dist += [normv(vectarget[i] - pos3)]
+
+    return S, dist
+
+
 if __name__ == "__main__":
 
     tg = 80
 
     A = [0, 0, 0, 0, 0, 0]
-    target = np.array([60, 40, 0])
-    for i in range(1):
-        #ry1, rz1, rx2, ry2 = optibras(ry1, rz1, rx2, ry2, target)
-        #ry1, rz1, rx2, ry2 = optimonte2(ry1, rz1, rx2, ry2, target, 100000)
-        A = optimonte2(A, target)
+
+    target = np.array([-40, -40, 0])
+    A = optimonte2rot(A, target, np.array(
+        [1, 0, 0]), tol=0.01, f=bras2pos)
+
+    #A = [0.25, 0.25, 0.5, 0, 0, 0]
+
     pos1, pos2, pos3 = bras2pos(A)
 
     fig = plt.figure()
@@ -310,7 +467,7 @@ if __name__ == "__main__":
     ax.set_ylabel('axe y')
     ax.set_zlabel('axe z')
 
-    displaybras2(A, ax)
+    displaybras2(A, ax, f=bras2pos)
 
     plt.show()
 
