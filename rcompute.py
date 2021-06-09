@@ -1,6 +1,8 @@
 import numpy as np
 
 
+# --- Fonctions mathématiques matricielles/vectorielles ---
+
 def mat_rot(rx, ry, rz):
     """ Crée une matrice de rotation rx, ry, rz. """
 

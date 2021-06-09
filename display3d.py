@@ -2,6 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from rcompute import *
 
+# --- Fonctions pour l'affichage 3D ---
+
 
 def rep3d(ax, vc, vr, t=5, typerot='vec'):
     """ Créée dans ax un repère de centre vc et de rotation vr. """
@@ -25,6 +27,7 @@ def rep3d(ax, vc, vr, t=5, typerot='vec'):
 
 
 def graph3d(tabdata, tg=60):
+    """ Trace les données """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 

@@ -6,9 +6,13 @@ from bras import *
 from iocsvfile import *
 
 if __name__ == "__main__":
-
+    # Taille de la fenêtre
     tg = 45
+
+    # Chargement d'un fichier de trajectoire
     tabdata = read_csv("D:/Weez-u/Trajectoire/data/trajectoire tube 138.csv")
+
+    # Sélection de la fonction du bras, qui détermine sa géométrie
     f = bras2pos
 
     ltarget = []
@@ -16,14 +20,13 @@ if __name__ == "__main__":
         if e[0] != 'id' and e[0] != '-1':
             ltarget += [e[1:4]]
 
-    ltarget2 = []
-    rot = []
-    for i in range(20):
-        ltarget2 += [[30, 50 - i * 4, 10]]
-        rot += [[0, 0, 1]]
+    # Vecteur de position de départ des actionneurs
+    vec = [0, 0, 0, 0, 0, 0]
 
-    S, dist = optitrajectoire2([0, 0, 0, 0, 0, 0], ltarget, f)
+    # Calcul de la trajectoire
+    S, dist = optitrajectoire2(vec, ltarget, f)
 
+    # Graphe 3D
     fig = plt.figure(1)
     ax = fig.add_subplot(111, projection='3d')
 
@@ -38,6 +41,7 @@ if __name__ == "__main__":
     for i in range(len(S)):
         displaybras2(S[i], ax, f)
 
+    # Graphe d'erreur
     plt.figure(2)
     plt.plot(dist)
 
@@ -58,6 +62,7 @@ if __name__ == "__main__":
         L5 += [S[i][4]]
         L6 += [S[i][5]]
 
+    # Graphe des actionneurs
     fig, axs = plt.subplots(2, 3)
 
     axs[0, 0].plot(L1)
@@ -74,50 +79,13 @@ if __name__ == "__main__":
     axs[1, 2].set_title('Moteur 6')
 
     for ax in axs.flat:
-        ax.set(xlabel='Rotation', ylabel='Avancement')
+        ax.set(ylabel='Rotation en (radians)',
+               xlabel='Avancement (numéro de point)')
     for ax in axs.flat:
         ax.label_outer()
 
     for i in range(len(L1)):
         print(L1[i] * 180 + 180, ',', L2[i] * 180 + 180, ',', L3[i] * 180 + 180, ',',
               L4[i] * 180 + 180, ',', L5[i] * 180 + 180, ',', L6[i] * 180 + 180, ',')
-
-    plt.show()
-
-
-def test():
-
-    bras1pos(-0.5, 0.5, 0, 0.5)  # [1. 1. 0.]
-
-    tg = 80
-
-    tabdata = read_csv("D:/Weez-u/Trajectoire/data/trajectoire tube 138.csv")
-
-    ltarget = []
-    for e in tabdata:
-        if e[0] != 'id' and e[0] != '-1':
-            ltarget += [e[1:4]]
-
-    Lry1, Lrz1, Lrx2, Lry2, dist = optitrajectoire(-0.5, 0.5, 0, 0, ltarget)
-
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111, projection='3d')
-
-    ax.set_xlim([-tg, tg])
-    ax.set_ylim([-tg, tg])
-    ax.set_zlim([-tg, tg])
-
-    ax.set_xlabel('axe x')
-    ax.set_ylabel('axe y')
-    ax.set_zlabel('axe z')
-
-    for i in range(len(Lry1)):
-        displaybras1(Lry1[i], Lrz1[i], Lrx2[i], Lry2[i], ax)
-
-    plt.figure(2)
-    plt.plot(dist)
-
-    plt.xlabel('Numéro de point')
-    plt.ylabel('Distance à la consigne')
 
     plt.show()
